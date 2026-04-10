@@ -10,116 +10,70 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom CSS for a professional look
-st.markdown("""<style>...</style>""", unsafe_allow_html=True)
+# Professional CSS for a SaaS-ready look
+# Fixed the 'unsafe_allow_html' parameter here
+st.markdown("""
+    <style>
+    .main { background-color: #f8f9fa; }
+    .stButton>button { width: 100%; border-radius: 5px; height: 3em; background-color: #007bff; color: white; font-weight: bold; }
+    .persona-card { padding: 25px; border-radius: 12px; background-color: white; border: 1px solid #e0e0e0; margin-bottom: 20px; box-shadow: 2px 2px 10px rgba(0,0,0,0.05); }
+    .metric-text { font-size: 0.9em; color: #6c757d; }
+    </style>
+    """, unsafe_allow_html=True)
 
-# --- SIDEBAR: Product Governance ---
+# --- SIDEBAR: Governance & Technical Info ---
 with st.sidebar:
-    st.title("⚙️ Project Control")
-    api_key = st.text_input("Groq API Key", type="password", help="Get yours at console.groq.com")
+    st.title("⚙️ Control Plane")
+    groq_api_key = st.text_input("Groq API Key", type="password", help="Enter your gsk_... key from console.groq.com")
     st.divider()
-    st.markdown("### 📊 Model Metrics")
-    st.info("Model: **Llama-3.3-70b-Versatile**\n\nLatency: ~280 tokens/sec")
+    st.markdown("### 📊 Model Info")
+    st.info("**Provider:** Groq LPU™\n\n**Model:** Llama-3.3-70b-Versatile\n\n**Task:** Structural Discovery")
     st.divider()
-    st.markdown("### 🛠️ TPM Methodology")
-    st.caption("This tool uses **Few-Shot Prompting** and **System Role-Playing** to reduce hallucination in UX research artifacts.")
+    st.markdown("### 🛠️ PM Methodology")
+    st.caption("This tool implements **System Role Prompting** to act as a Senior TPM, ensuring artifacts follow industry standards for product requirement documents (PRD).")
 
 # --- MAIN UI ---
 st.title("🎯 PersonaStream AI")
-st.subheader("Autonomous UX Persona & Journey Mapping for Product Discovery")
+st.markdown("#### Autonomous Discovery Engine for AI Product Managers")
 
 # Input Section
 col1, col2 = st.columns([1, 1])
 
 with col1:
-    product_name = st.text_input("Product Name", placeholder="e.g. EcoRoute")
-    product_desc = st.text_area("Product Vision", placeholder="A mobile app for low-carbon travel planning...")
+    product_name = st.text_input("Product Name", value="EcoRoute", help="The name of your project or feature.")
+    product_desc = st.text_area("Product Vision", placeholder="Describe the 'Why' and 'How' of your product...", height=150)
 
 with col2:
-    target_audience = st.text_input("Target Segment", placeholder="e.g. Gen-Z Eco-conscious Travelers")
-    user_goals = st.text_area("Core User Problems", placeholder="Users find it hard to calculate carbon footprints for multi-modal trips...")
+    target_audience = st.text_input("Target Segment", placeholder="e.g. Solo-Preneurs, College Students...")
+    user_goals = st.text_area("Primary User Challenges", placeholder="What are the main friction points they face today?", height=150)
 
-# --- CORE LOGIC ---
-if st.button("Generate Discovery Artifacts"):
-    if not api_key:
-        st.error("Please provide a Groq API Key in the sidebar.")
+# --- EXECUTION ENGINE ---
+if st.button("Generate Strategy Artifacts"):
+    if not groq_api_key:
+        st.error("Missing API Key: Please add your Groq key in the sidebar.")
+    elif not product_desc or not target_audience:
+        st.warning("Incomplete Data: Please fill out the Product Vision and Target Segment.")
     else:
         try:
-            client = Groq(api_key=api_key)
+            client = Groq(api_key=groq_api_key)
             start_time = time.time()
             
-            # 1. GENERATE PERSONAS
-            with st.status("🚀 Synthesizing User Segments...", expanded=True) as status:
-                st.write("Analyzing product vision...")
+            # Step 1: Structured Data Generation (JSON)
+            with st.status("🚀 Synthesizing User Archetypes...", expanded=True) as status:
+                st.write("Generating structured JSON persona data...")
                 
-                # We use a System Prompt to ensure TPM-level quality
-                stream = client.chat.completions.create(
+                # Using JSON mode for predictable UI rendering
+                response = client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
                     messages=[
-                        {"role": "system", "content": "You are a Senior AI Technical Product Manager. Output only valid JSON."},
+                        {"role": "system", "content": "You are a Senior AI Product Manager. You must return ONLY a JSON object."},
                         {"role": "user", "content": f"""
                         Create 2 detailed UX personas for {product_name}. 
-                        Context: {product_desc}. Target: {target_audience}. Goals: {user_goals}.
-                        Return JSON format: {{"personas": [{{"name": "", "role": "", "bio": "", "pain_points": [], "goals": []}}]}}
-                        """}
-                    ],
-                    response_format={"type": "json_object"},
-                    temperature=0.2 # Lower temperature for consistency
-                )
-                
-                raw_data = json.loads(stream.choices[0].message.content)
-                status.update(label="✅ Personas Generated!", state="complete")
-
-            # --- DISPLAY PERSONAS IN CARDS ---
-            st.divider()
-            st.header("👤 AI-Generated Personas")
-            p_cols = st.columns(len(raw_data['personas']))
-            
-            for i, persona in enumerate(raw_data['personas']):
-                with p_cols[i]:
-                    st.markdown(f"""
-                    <div class="persona-card">
-                        <h3>{persona['name']}</h3>
-                        <p><b>Role:</b> {persona['role']}</p>
-                        <p>{persona['bio']}</p>
-                        <hr>
-                        <b>Pain Points:</b>
-                        <ul>{" ".join([f"<li>{p}</li>" for p in persona['pain_points']])}</ul>
-                    </div>
-                    """, unsafe_allow_index=True)
-
-            # 2. GENERATE JOURNEY MAP (Streaming for UX)
-            st.divider()
-            st.header("🗺️ User Journey Map: " + raw_data['personas'][0]['name'])
-            
-            journey_stream = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=[
-                    {"role": "system", "content": "Create a professional 5-stage User Journey Map table."},
-                    {"role": "user", "content": f"Generate a journey map for {raw_data['personas'][0]['name']} using {product_name}."}
-                ],
-                stream=True
-            )
-            
-            # Streaming the text for that "WOW" factor
-            placeholder = st.empty()
-            full_response = ""
-            for chunk in journey_stream:
-                if chunk.choices[0].delta.content:
-                    full_response += chunk.choices[0].delta.content
-                    placeholder.markdown(full_response + "▌")
-            placeholder.markdown(full_response)
-
-            # --- METRICS BOX (TPM Value Add) ---
-            end_time = time.time()
-            st.toast(f"Artifacts generated in {round(end_time - start_time, 2)}s", icon="⚡")
-            
-            with st.expander("📂 Download Artifacts for PRD"):
-                st.download_button("Export as Markdown", full_response, file_name="discovery_artifacts.md")
-
-        except Exception as e:
-            st.error(f"Product Logic Error: {e}")
-
-# --- FOOTER ---
-st.divider()
-st.caption("Built by Pakhi Garg | Aspiring AI TPM | Leveraging LPU™ Inference Technology")
+                        Product Vision: {product_desc}. Target Segment: {target_audience}. Challenges: {user_goals}.
+                        Return in this JSON format: 
+                        {{
+                          "personas": [
+                            {{
+                              "name": "Full Name",
+                              "role": "Brief Role",
+                              "
