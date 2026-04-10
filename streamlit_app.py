@@ -24,20 +24,22 @@ with st.form("persona_form"):
 
     # Execution
     if submitted and hf_api_token.startswith("hf_"):
-        with st.spinner("Synthesizing UX profiles..."):
+        with st.spinner("Synthesizing UX profiles (This may take a moment if the model is waking up)..."):
             try:
-                # 1. Initialize the Endpoint
+                # 1. Initialize the Endpoint with a NEWER model (v0.3)
+                # This model is currently the most stable on the free serverless tier.
                 llm = HuggingFaceEndpoint(
-                    repo_id="mistralai/Mistral-7B-Instruct-v0.2",
+                    repo_id="mistralai/Mistral-7B-Instruct-v0.3", 
                     huggingfacehub_api_token=hf_api_token,
                     max_new_tokens=1024,
-                    temperature=0.7
+                    temperature=0.7,
+                    timeout=300 # Wait up to 5 mins for the model to load
                 )
                 
-                # 2. Wrap it in ChatHuggingFace to fix the "conversational" task error
+                # 2. Wrap in ChatHuggingFace
                 chat_model = ChatHuggingFace(llm=llm)
                 
-                # 3. Build the prompt using Chat Messages
+                # 3. Build the prompt
                 messages = [
                     SystemMessage(content="You are an Expert UX Researcher."),
                     HumanMessage(content=f"""
@@ -65,4 +67,4 @@ with st.form("persona_form"):
                 
             except Exception as e:
                 st.error(f"An API error occurred: {e}")
-                st.info("Tip: Ensure your Hugging Face token has 'Inference' permissions enabled.")
+                st.info("💡 Pro-Tip: If you see a '503' error, the model is just 'waking up.' Wait 10 seconds and hit Submit again!")
