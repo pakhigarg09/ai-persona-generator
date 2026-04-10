@@ -1,11 +1,11 @@
 import streamlit as st
-from langchain_huggingface import HuggingFaceEndpoint, ChatHuggingFace
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_huggingface import HuggingFaceEndpoint
+from langchain.prompts import PromptTemplate
 
 # Configure the Streamlit page
 st.set_page_config(page_title="GenAI Persona Builder", page_icon="🧑‍🤝‍🧑")
 st.title("🧑‍🤝‍🧑 GenAI UX Persona & Journey Builder")
-st.markdown("Instantly generate alignment personas and user journey maps to kickstart your UX discovery phase.")
+st.markdown("Instantly generate alignment personas and journey maps using Mistral AI.")
 
 # Sidebar for API Token
 hf_api_token = st.sidebar.text_input("Enter Hugging Face Token (hf_...)", type="password")
@@ -24,47 +24,42 @@ with st.form("persona_form"):
 
     # Execution
     if submitted and hf_api_token.startswith("hf_"):
-        with st.spinner("Synthesizing UX profiles (This may take a moment if the model is waking up)..."):
+        with st.spinner("Synthesizing UX profiles..."):
             try:
-                # 1. Initialize the Endpoint with a NEWER model (v0.3)
-                # This model is currently the most stable on the free serverless tier.
+                # 1. Initialize the Endpoint directly
+                # We use task="text-generation" to match what the free API expects
                 llm = HuggingFaceEndpoint(
-                    repo_id="mistralai/Mistral-7B-Instruct-v0.3", 
+                    repo_id="mistralai/Mistral-7B-Instruct-v0.3",
+                    task="text-generation",
                     huggingfacehub_api_token=hf_api_token,
                     max_new_tokens=1024,
-                    temperature=0.7,
-                    timeout=300 # Wait up to 5 mins for the model to load
+                    temperature=0.7
                 )
                 
-                # 2. Wrap in ChatHuggingFace
-                chat_model = ChatHuggingFace(llm=llm)
+                # 2. Use a standard PromptTemplate (No ChatWrapper needed)
+                template = """<s>[INST] You are an Expert UX Researcher. Based on the details below, generate 2 personas and a user journey map.
+
+                Product: {product}
+                Target Age: {age}
+                Goals: {goals}
+
+                Task 1: Generate 2 distinct fictional UX personas (Name, Age, Occupation, Story, Needs, Pain Points).
+                Task 2: Create a simple User Journey Map for Persona #1 (Awareness, Consideration, First Use, Core Action, Post-Usage). [/INST]</s>"""
+
+                prompt = PromptTemplate.from_template(template)
                 
-                # 3. Build the prompt
-                messages = [
-                    SystemMessage(content="You are an Expert UX Researcher."),
-                    HumanMessage(content=f"""
-                    The product team is building a new product.
-                    
-                    Product Context:
-                    - Description: {product_desc}
-                    - Target Age Group: {age_group}
-                    - User Goals: {user_goals}
-                    
-                    Task 1: Generate 2 distinct fictional UX personas for this audience. 
-                    Include: Name, Age, Occupation, Background, Needs, and Pain Points.
-                    
-                    Task 2: Create a simple User Journey Map for Persona #1.
-                    Include: Awareness, Consideration, First Use, Core Action, and Post-Usage.
-                    For each stage list: User Actions and User Thoughts.
-                    """)
-                ]
+                # 3. Simple Chain: Prompt | LLM
+                chain = prompt | llm
                 
-                # 4. Get the response
-                response = chat_model.invoke(messages)
+                # 4. Run and Display
+                response = chain.invoke({
+                    "product": product_desc,
+                    "age": age_group,
+                    "goals": user_goals
+                })
                 
                 st.success("Artifacts Generated Successfully!")
-                st.markdown(response.content)
+                st.markdown(response)
                 
             except Exception as e:
                 st.error(f"An API error occurred: {e}")
-                st.info("💡 Pro-Tip: If you see a '503' error, the model is just 'waking up.' Wait 10 seconds and hit Submit again!")
