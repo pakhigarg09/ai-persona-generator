@@ -11,12 +11,11 @@ st.set_page_config(
 )
 
 # Professional CSS for a SaaS-ready look
-# Fixed the 'unsafe_allow_html' parameter here
 st.markdown("""
     <style>
     .main { background-color: #f8f9fa; }
     .stButton>button { width: 100%; border-radius: 5px; height: 3em; background-color: #007bff; color: white; font-weight: bold; }
-    .persona-card { padding: 25px; border-radius: 12px; background-color: white; border: 1px solid #e0e0e0; margin-bottom: 20px; box-shadow: 2px 2px 10px rgba(0,0,0,0.05); }
+    .persona-card { padding: 25px; border-radius: 12px; background-color: white; border: 1px solid #e0e0e0; margin-bottom: 20px; box-shadow: 2px 2px 10px rgba(0,0,0,0.05); min-height: 350px; }
     .metric-text { font-size: 0.9em; color: #6c757d; }
     </style>
     """, unsafe_allow_html=True)
@@ -24,7 +23,7 @@ st.markdown("""
 # --- SIDEBAR: Governance & Technical Info ---
 with st.sidebar:
     st.title("⚙️ Control Plane")
-    groq_api_key = st.text_input("Groq API Key", type="password", help="Enter your gsk_... key from console.groq.com")
+    groq_api_key = st.sidebar.text_input("Groq API Key", type="password", help="Enter your gsk_... key from console.groq.com")
     st.divider()
     st.markdown("### 📊 Model Info")
     st.info("**Provider:** Groq LPU™\n\n**Model:** Llama-3.3-70b-Versatile\n\n**Task:** Structural Discovery")
@@ -62,18 +61,43 @@ if st.button("Generate Strategy Artifacts"):
             with st.status("🚀 Synthesizing User Archetypes...", expanded=True) as status:
                 st.write("Generating structured JSON persona data...")
                 
-                # Using JSON mode for predictable UI rendering
+                # Using double curly braces {{ }} to escape them in the f-string
+                persona_prompt = f"""
+                Create 2 detailed UX personas for {product_name}. 
+                Product Vision: {product_desc}. 
+                Target Segment: {target_audience}. 
+                Challenges: {user_goals}.
+                
+                Return ONLY a JSON object in this format: 
+                {{
+                  "personas": [
+                    {{
+                      "name": "Full Name",
+                      "role": "Brief Role",
+                      "bio": "1-2 sentence background",
+                      "pain_points": ["point 1", "point 2"],
+                      "goals": ["goal 1", "goal 2"]
+                    }}
+                  ]
+                }}
+                """
+
                 response = client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
                     messages=[
                         {"role": "system", "content": "You are a Senior AI Product Manager. You must return ONLY a JSON object."},
-                        {"role": "user", "content": f"""
-                        Create 2 detailed UX personas for {product_name}. 
-                        Product Vision: {product_desc}. Target Segment: {target_audience}. Challenges: {user_goals}.
-                        Return in this JSON format: 
-                        {{
-                          "personas": [
-                            {{
-                              "name": "Full Name",
-                              "role": "Brief Role",
-                              "
+                        {"role": "user", "content": persona_prompt}
+                    ],
+                    response_format={"type": "json_object"},
+                    temperature=0.1
+                )
+                
+                raw_data = json.loads(response.choices[0].message.content)
+                status.update(label="✅ User Segments Defined!", state="complete")
+
+            # --- RENDER PERSONA CARDS ---
+            st.divider()
+            st.header("👤 Strategic User Personas")
+            p_cols = st.columns(len(raw_data['personas']))
+            
+            for i, persona in enumerate(raw_data['personas']):
