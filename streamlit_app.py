@@ -1,13 +1,10 @@
 import streamlit as st
-from langchain_huggingface import HuggingFaceEndpoint
-from langchain_core.prompts import PromptTemplate  # <--- This is the 2026 correct path
-
-# ... (the rest of your code remains the same)
+from openai import OpenAI
 
 # Configure the Streamlit page
 st.set_page_config(page_title="GenAI Persona Builder", page_icon="🧑‍🤝‍🧑")
 st.title("🧑‍🤝‍🧑 GenAI UX Persona & Journey Builder")
-st.markdown("Instantly generate alignment personas and journey maps using Mistral AI.")
+st.markdown("Instantly generate alignment personas and journey maps.")
 
 # Sidebar for API Token
 hf_api_token = st.sidebar.text_input("Enter Hugging Face Token (hf_...)", type="password")
@@ -28,40 +25,32 @@ with st.form("persona_form"):
     if submitted and hf_api_token.startswith("hf_"):
         with st.spinner("Synthesizing UX profiles..."):
             try:
-                # 1. Initialize the Endpoint directly
-                # We use task="text-generation" to match what the free API expects
-                llm = HuggingFaceEndpoint(
-                    repo_id="mistralai/Mistral-7B-Instruct-v0.3",
-                    task="text-generation",
-                    huggingfacehub_api_token=hf_api_token,
-                    max_new_tokens=1024,
+                # 1. Initialize the client using the Hugging Face Router URL
+                client = OpenAI(
+                    base_url="https://router.huggingface.co/v1",
+                    api_key=hf_api_token
+                )
+
+                # 2. Use a Chat Completion call (matches the 'conversational' requirement)
+                # We append ':fastest' to the model name to let HF pick the best provider automatically
+                response = client.chat.completions.create(
+                    model="mistralai/Mistral-7B-Instruct-v0.3",
+                    messages=[
+                        {"role": "system", "content": "You are an Expert UX Researcher."},
+                        {"role": "user", "content": f"""
+                        Generate 2 distinct fictional UX personas and a simple journey map.
+                        Product: {product_desc}
+                        Age: {age_group}
+                        Goals: {user_goals}
+                        """}
+                    ],
+                    max_tokens=1024,
                     temperature=0.7
                 )
                 
-                # 2. Use a standard PromptTemplate (No ChatWrapper needed)
-                template = """<s>[INST] You are an Expert UX Researcher. Based on the details below, generate 2 personas and a user journey map.
-
-                Product: {product}
-                Target Age: {age}
-                Goals: {goals}
-
-                Task 1: Generate 2 distinct fictional UX personas (Name, Age, Occupation, Story, Needs, Pain Points).
-                Task 2: Create a simple User Journey Map for Persona #1 (Awareness, Consideration, First Use, Core Action, Post-Usage). [/INST]</s>"""
-
-                prompt = PromptTemplate.from_template(template)
-                
-                # 3. Simple Chain: Prompt | LLM
-                chain = prompt | llm
-                
-                # 4. Run and Display
-                response = chain.invoke({
-                    "product": product_desc,
-                    "age": age_group,
-                    "goals": user_goals
-                })
-                
+                # 3. Display Result
                 st.success("Artifacts Generated Successfully!")
-                st.markdown(response)
+                st.markdown(response.choices[0].message.content)
                 
             except Exception as e:
                 st.error(f"An API error occurred: {e}")

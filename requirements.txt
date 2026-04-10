@@ -1,6 +1,2 @@
 streamlit
-langchain
-langchain-community
-langchain-core
-langchain-huggingface
-huggingface_hub
+openai
