@@ -1,15 +1,14 @@
 import streamlit as st
-from openai import OpenAI
+from groq import Groq
 
-# Configure the Streamlit page
+# Page Config
 st.set_page_config(page_title="GenAI Persona Builder", page_icon="🧑‍🤝‍🧑")
 st.title("🧑‍🤝‍🧑 GenAI UX Persona & Journey Builder")
-st.markdown("Instantly generate alignment personas and journey maps.")
+st.markdown("Instantly generate alignment personas and journey maps using Groq (Llama 3).")
 
-# Sidebar for API Token
-hf_api_token = st.sidebar.text_input("Enter Hugging Face Token (hf_...)", type="password")
+# Sidebar for API Key
+groq_api_key = st.sidebar.text_input("Enter Groq API Key (gsk_...)", type="password")
 
-# Form for user inputs
 with st.form("persona_form"):
     product_desc = st.text_input("Product Description", "e.g., A mobile app for remote workers to find quiet cafes.")
     age_group = st.text_input("Target Audience Age Group", "e.g., 25-40")
@@ -17,40 +16,35 @@ with st.form("persona_form"):
     
     submitted = st.form_submit_button("Generate UX Artifacts")
 
-    # Validation
-    if not hf_api_token.startswith("hf_"):
-        st.warning("Please enter a valid Hugging Face token in the sidebar.", icon="⚠")
+    if not groq_api_key.startswith("gsk_"):
+        st.warning("Please enter your Groq API key in the sidebar.")
 
-    # Execution
-    if submitted and hf_api_token.startswith("hf_"):
-        with st.spinner("Synthesizing UX profiles..."):
+    if submitted and groq_api_key.startswith("gsk_"):
+        with st.spinner("Synthesizing UX profiles at warp speed..."):
             try:
-                # 1. Initialize the client using the Hugging Face Router URL
-                client = OpenAI(
-                    base_url="https://router.huggingface.co/v1",
-                    api_key=hf_api_token
-                )
-
-                # 2. Use a Chat Completion call (matches the 'conversational' requirement)
-                # We append ':fastest' to the model name to let HF pick the best provider automatically
-                response = client.chat.completions.create(
-                    model="mistralai/Mistral-7B-Instruct-v0.3",
+                client = Groq(api_key=groq_api_key)
+                
+                # Using Llama-3.3-70b - one of the most powerful free models available on Groq
+                completion = client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
                     messages=[
-                        {"role": "system", "content": "You are an Expert UX Researcher."},
+                        {"role": "system", "content": "You are an Expert UX Researcher specializing in empathy mapping."},
                         {"role": "user", "content": f"""
-                        Generate 2 distinct fictional UX personas and a simple journey map.
+                        Based on these details, generate 2 personas and a user journey map.
                         Product: {product_desc}
-                        Age: {age_group}
+                        Target Age: {age_group}
                         Goals: {user_goals}
+
+                        Task 1: 2 Personas (Name, Age, Occupation, Story, Needs, Pain Points).
+                        Task 2: Journey Map for Persona #1 (Awareness, Consideration, First Use, Core Action, Post-Usage).
                         """}
                     ],
-                    max_tokens=1024,
-                    temperature=0.7
+                    temperature=0.7,
+                    max_tokens=2048
                 )
                 
-                # 3. Display Result
-                st.success("Artifacts Generated Successfully!")
-                st.markdown(response.choices[0].message.content)
+                st.success("Artifacts Generated!")
+                st.markdown(completion.choices[0].message.content)
                 
             except Exception as e:
-                st.error(f"An API error occurred: {e}")
+                st.error(f"Error: {e}")
