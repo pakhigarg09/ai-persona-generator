@@ -1,6 +1,6 @@
 import streamlit as st
-from langchain_openai.chat_models import ChatOpenAI
-from langchain.prompts import PromptTemplate
+from langchain_openai import ChatOpenAI
+from langchain_core.prompts import PromptTemplate
 
 # Configure the Streamlit page
 st.set_page_config(page_title="GenAI Persona Builder", page_icon="🧑‍🤝‍🧑")
