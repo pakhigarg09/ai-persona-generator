@@ -1,6 +1,8 @@
 import streamlit as st
 from langchain_huggingface import HuggingFaceEndpoint
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate  # <--- This is the 2026 correct path
+
+# ... (the rest of your code remains the same)
 
 # Configure the Streamlit page
 st.set_page_config(page_title="GenAI Persona Builder", page_icon="🧑‍🤝‍🧑")
